@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SVI — Security and Verification Inspector</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Serif+4:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --eh-purple: #4C2D8A;
+    --svi-navy: #2E3A59;
+    --svi-navy-light: #3D4E6B;
+    --body-text: #1a1a2e;
+    --muted: #5a6070;
+    --border: #d0d4dc;
+    --bg-white: #ffffff;
+    --input-bg: #e8e9ec;
+    --deco-stripe: rgba(180,175,200,0.18);
+    --deco-circle: rgba(200,195,215,0.22);
+  }
+
+  body {
+    font-family: 'Source Serif 4', Georgia, serif;
+    background: var(--bg-white);
+    color: var(--body-text);
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* ── Navbar ── */
+  nav {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    padding: 18px 28px 16px;
+    border-bottom: 1px solid var(--border);
+    background-color: var(--bg-white);
+    background-image: url('data:image/jpeg;base64,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');
+    background-repeat: no-repeat;
+    background-position: right top;
+    background-size: auto 100%;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    text-decoration: none;
+  }
+
+  .brand-eh {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 700;
+    font-size: 16px;
+    line-height: 1.2;
+    color: var(--eh-purple);
+    letter-spacing: 0.01em;
+  }
+
+  .brand-divider {
+    width: 1px;
+    height: 44px;
+    background: #b0b4c0;
+    flex-shrink: 0;
+  }
+
+  .brand-svi {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .brand-svi-title {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 400;
+    font-size: 28px;
+    color: var(--svi-navy);
+    letter-spacing: 0.04em;
+    line-height: 1;
+  }
+
+  .brand-svi-sub {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-weight: 300;
+    font-size: 11px;
+    color: var(--svi-navy-light);
+    letter-spacing: 0.06em;
+  }
+
+  /* ── Main content ── */
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 28px 80px;
+  }
+
+  /* ── Hero heading ── */
+  .heading-block {
+    margin-bottom: 32px;
+  }
+
+  .heading-block h1 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 400;
+    font-size: clamp(32px, 7vw, 48px);
+    color: var(--svi-navy);
+    line-height: 1.1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .heading-block h1 .emoji {
+    font-size: clamp(28px, 6vw, 42px);
+    line-height: 1;
+  }
+
+  /* ── Body paragraphs ── */
+  .body-section {
+    margin-bottom: 20px;
+  }
+
+  .body-section p {
+    font-size: clamp(14px, 3.5vw, 16px);
+    line-height: 1.75;
+    color: var(--body-text);
+    font-weight: 300;
+  }
+
+  /* ── IP input block ── */
+  .ip-block {
+    margin: 28px 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 420px;
+  }
+
+  .ip-input {
+    background: var(--input-bg);
+    border: none;
+    border-radius: 6px;
+    padding: 14px 20px;
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-size: 15px;
+    color: var(--muted);
+    width: 100%;
+    outline: none;
+    transition: background 0.2s;
+  }
+
+  .ip-input:focus {
+    background: #dddfe4;
+  }
+
+  .ip-hint {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    letter-spacing: 0.03em;
+  }
+
+  /* ── Section headings ── */
+  .section-title {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 400;
+    font-size: clamp(22px, 5vw, 32px);
+    color: var(--svi-navy);
+    margin: 44px 0 16px;
+    line-height: 1.2;
+  }
+
+  /* ── Note / Important blocks ── */
+  .section-body {
+    font-size: clamp(14px, 3.5vw, 16px);
+    line-height: 1.75;
+    color: var(--body-text);
+    font-weight: 300;
+  }
+
+  /* ── Important list ── */
+  .important-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 0;
+  }
+
+  .important-list li {
+    font-size: clamp(14px, 3.5vw, 16px);
+    line-height: 1.75;
+    color: var(--body-text);
+    font-weight: 300;
+    position: relative;
+    padding-left: 0;
+  }
+
+  /* ── Divider ── */
+  hr.section-rule {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0 0 0;
+  }
+
+  /* ── Mobile tweaks ── */
+  @media (max-width: 480px) {
+    nav { padding: 14px 18px 12px; }
+    main { padding: 36px 18px 60px; }
+    .brand-svi-title { font-size: 22px; }
+    .brand-eh { font-size: 14px; }
+    .brand-divider { height: 38px; }
+  }
+
+  /* ── Closing note ── */
+  .closing-note {
+    margin-top: 36px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 18px 28px;
+    background: var(--bg-white);
+    text-align: center;
+  }
+
+  .footer-text {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+</style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav>
+  <a class="brand" href="#">
+    <span class="brand-eh">Erickson<br>Holding</span>
+    <span class="brand-divider"></span>
+    <span class="brand-svi">
+      <span class="brand-svi-title">SVI</span>
+      <span class="brand-svi-sub">Security and verification inspector</span>
+    </span>
+  </a>
+</nav>
+
+<!-- Main -->
+<main>
+
+  <!-- Heading -->
+  <div class="heading-block">
+    <h1>Oh no… <span class="emoji">🚫</span></h1>
+  </div>
+
+  <!-- Intro paragraphs -->
+  <div class="body-section">
+    <p>During a recent review, SVI (Security &amp; Verification Inspector) detected unusual or suspicious activity associated with your IP address and/or account usage. Based on these findings, your access to the app and our services has been temporarily restricted or fully blocked.</p>
+  </div>
+
+  <div class="body-section">
+    <p>Our systems continuously perform automated and manual checks to ensure the safety, integrity, and reliability of our platform. When abnormal patterns are identified—such as unauthorized access attempts, misuse of features, or violations of our terms of service—this may result in an immediate restriction.</p>
+  </div>
+
+  <!-- IP input -->
+  <div class="ip-block">
+    <input class="ip-input" type="text" placeholder="type your ip in for deblock" aria-label="Enter your IP address for deblock">
+    <span class="ip-hint">check or the deblock work for you</span>
+  </div>
+
+  <!-- What does this mean -->
+  <h2 class="section-title">What does this mean for you?</h2>
+  <p class="section-body">At this time, your account has been flagged for further investigation. This means you may not be able to access certain features or may be completely restricted from the platform until the verification process is completed.</p>
+
+  <!-- Verification Process -->
+  <h2 class="section-title">Verification Process</h2>
+  <p class="section-body">You may be eligible for a review of this restriction. To proceed, you will need to complete a verification process, which may require additional information such as identity confirmation, device verification, or details about recent activity. This helps us determine whether access can be safely restored.</p>
+
+  <!-- Please note -->
+  <h2 class="section-title">Please note:</h2>
+  <p class="section-body">In some cases, the restriction may be permanent. If our investigation confirms serious or repeated violations of our policies, the block will remain in place and cannot be reversed. In such situations, we are unable to provide further assistance regarding account reactivation.</p>
+
+  <!-- Important -->
+  <h2 class="section-title">Important</h2>
+  <ul class="important-list">
+    <li>Any attempt to bypass this restriction may result in additional actions.</li>
+    <li>Creating multiple accounts or using alternative access methods is strictly prohibited.</li>
+    <li>We strongly recommend completing the verification process accurately for a possible review.</li>
+  </ul>
+
+  <!-- Closing note -->
+  <p class="section-body closing-note">We understand this situation may be frustrating, and we are committed to handling every case carefully and fairly. Thank you for your understanding and cooperation.</p>
+
+</main>
+
+<!-- Footer -->
+<footer>
+  <span class="footer-text">SVI – Security &amp; Verification Inspector Team</span>
+</footer>
+
+</body>
+</html>

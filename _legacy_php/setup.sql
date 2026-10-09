@@ -1,0 +1,172 @@
+-- ============================================================
+--  SVI – Security & Verification Inspector  |  FULL SETUP
+--  Run: mysql -u root -p < setup.sql
+-- ============================================================
+
+CREATE DATABASE IF NOT EXISTS `svi_db`
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE `svi_db`;
+
+-- ── Page content ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `svi_content` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `page`       VARCHAR(80)  NOT NULL DEFAULT 'main',
+  `key`        VARCHAR(120) NOT NULL,
+  `value`      TEXT         NOT NULL,
+  `updated_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_page_key` (`page`, `key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `svi_content` (`page`, `key`, `value`) VALUES
+  ('main', 'brand_eh',            'Erickson<br>Holding'),
+  ('main', 'brand_svi_title',     'SVI'),
+  ('main', 'brand_svi_sub',       'Security and verification inspector'),
+  ('main', 'page_title',          'SVI — Security and Verification Inspector'),
+  ('main', 'hero_heading',        'Oh no…'),
+  ('main', 'hero_emoji',          '🚫'),
+  ('main', 'intro_p1',            'During a recent review, SVI (Security &amp; Verification Inspector) detected unusual or suspicious activity associated with your IP address and/or account usage. Based on these findings, your access to the app and our services has been temporarily restricted or fully blocked.'),
+  ('main', 'intro_p2',            'Our systems continuously perform automated and manual checks to ensure the safety, integrity, and reliability of our platform. When abnormal patterns are identified—such as unauthorized access attempts, misuse of features, or violations of our terms of service—this may result in an immediate restriction.'),
+  ('main', 'ip_input_placeholder','type your ip in for deblock'),
+  ('main', 'ip_input_hint',       'check or the deblock work for you'),
+  ('main', 'ip_submit_btn',       'Check IP'),
+  ('main', 'section1_title',      'What does this mean for you?'),
+  ('main', 'section1_body',       'At this time, your account has been flagged for further investigation. This means you may not be able to access certain features or may be completely restricted from the platform until the verification process is completed.'),
+  ('main', 'section2_title',      'Verification Process'),
+  ('main', 'section2_body',       'You may be eligible for a review of this restriction. To proceed, you will need to complete a verification process, which may require additional information such as identity confirmation, device verification, or details about recent activity. This helps us determine whether access can be safely restored.'),
+  ('main', 'section3_title',      'Please note:'),
+  ('main', 'section3_body',       'In some cases, the restriction may be permanent. If our investigation confirms serious or repeated violations of our policies, the block will remain in place and cannot be reversed. In such situations, we are unable to provide further assistance regarding account reactivation.'),
+  ('main', 'section4_title',      'Important'),
+  ('main', 'section4_item1',      'Any attempt to bypass this restriction may result in additional actions.'),
+  ('main', 'section4_item2',      'Creating multiple accounts or using alternative access methods is strictly prohibited.'),
+  ('main', 'section4_item3',      'We strongly recommend completing the verification process accurately for a possible review.'),
+  ('main', 'closing_note',        'We understand this situation may be frustrating, and we are committed to handling every case carefully and fairly. Thank you for your understanding and cooperation.'),
+  ('main', 'footer_text',         'SVI – Security &amp; Verification Inspector Team'),
+  ('main', 'hero_heading_safe',   'All Good!'),
+  ('main', 'hero_emoji_safe',     '✅'),
+  ('main', 'intro_p1_safe',       'You are a great user! Your IP address has been verified and is currently safe on our platform. No further action is required on your part to access our services.'),
+  ('main', 'intro_p2_safe',       'Our systems continuously monitor network health to ensure Erickson Holding remains a secure environment. Your connection checks out perfectly.'),
+  ('main', 'section1_title_safe',   'Security First'),
+  ('main', 'section1_body_safe',    'We prioritize your online safety by actively monitoring our network infrastructure. Because of this, you can browse with confidence.'),
+  ('main', 'section2_title_safe',   'Continuous Verification'),
+  ('main', 'section2_body_safe',    'Occasional soft-checks help guarantee the Erickson Holding ecosystem stays protected against automated bots and malicious activity.'),
+  ('main', 'section3_title_safe',   'Data Privacy'),
+  ('main', 'section3_body_safe',    'Your session and connection details remain securely encrypted. We value your digital privacy and ensure your data remains strictly confidential.'),
+  ('main', 'section4_title_safe',   'Best Practices'),
+  ('main', 'section4_item1_safe',   'Always use strong, unique passwords for maximum security.'),
+  ('main', 'section4_item2_safe',   'Enable Two-Factor Authentication (2FA) wherever possible.'),
+  ('main', 'section4_item3_safe',   'Regularly monitor your active sessions and device history.'),
+  ('main', 'closing_note_safe',   'Thank you for being a part of our secure platform.'),
+  ('main', 'result_not_found',    'This IP address is not in our records and has no active block.'),
+  ('main', 'result_soft_blocked', 'This IP address is currently <strong>soft-blocked</strong>. A deblock request has been initiated — please follow the verification steps below.'),
+  ('main', 'result_perm_blocked', 'This IP address has been <strong>permanently blocked</strong>. This decision cannot be reversed and no further assistance can be provided.'),
+  ('main', 'result_deblocked',    'This IP address has already been successfully deblocked and is no longer restricted.'),
+  ('404',  'page_title',          '404 Not Found — SVI'),
+  ('404',  'heading',             'Page Not Found'),
+  ('404',  'emoji',               '🧐'),
+  ('404',  'body',                'The page you are looking for does not exist or has been moved.'),
+  ('404',  'btn_label',           'Return to Home'),
+  ('500',  'page_title',          '500 Server Error — SVI'),
+  ('500',  'heading',             'Internal Server Error'),
+  ('500',  'emoji',               '🔥'),
+  ('500',  'body',                'Something went wrong on our end. We are looking into it.'),
+  ('500',  'btn_label',           'Return to Home'),
+  ('403',  'page_title',          '403 Forbidden — SVI'),
+  ('403',  'heading',             'Access Denied'),
+  ('403',  'emoji',               '⛔'),
+  ('403',  'body',                'You do not have permission to view this resource.'),
+  ('403',  'btn_label',           'Return to Home')
+ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);
+
+
+-- ── Blocked IPs ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `svi_blocked_ips` (
+  `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `ip`          VARCHAR(45)  NOT NULL,
+  `block_type`  ENUM('soft','permanent') NOT NULL DEFAULT 'soft',
+  `reason`      TEXT,
+  `deblock_req` TINYINT(1)   NOT NULL DEFAULT 0,
+  `deblocked`   TINYINT(1)   NOT NULL DEFAULT 0,
+  `created_at`  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_ip` (`ip`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT IGNORE INTO `svi_blocked_ips` (`ip`, `block_type`, `reason`) VALUES
+  ('192.168.1.100', 'soft',      'Suspicious login pattern detected'),
+  ('10.0.0.1',      'permanent', 'Repeated policy violations — permanent enforcement');
+
+
+-- ── Admin users ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `svi_admins` (
+  `id`              INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `username`        VARCHAR(60)  NOT NULL,
+  `password_hash`   VARCHAR(255) NOT NULL,
+  `email`           VARCHAR(120),
+  `last_login`      DATETIME,
+  `login_attempts`  TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `locked_until`    DATETIME,
+  `created_at`      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Default admin: username=admin  password=SviAdmin2024!
+-- Generate a fresh hash: php -r "echo password_hash('SviAdmin2024!', PASSWORD_BCRYPT);"
+INSERT IGNORE INTO `svi_admins` (`username`, `password_hash`, `email`) VALUES
+  ('admin', '$2y$10$wQzV3tZY5nXk8uLpMeR0OeQGfZ2B1C4sY9D7rJ6kN8gA3mHvP5Wui', 'admin@ericksonholding.com');
+
+
+-- ── Admin login audit log ─────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `svi_login_log` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `username`   VARCHAR(60)  NOT NULL,
+  `ip`         VARCHAR(45)  NOT NULL,
+  `success`    TINYINT(1)   NOT NULL DEFAULT 0,
+  `user_agent` TEXT,
+  `created_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- ── Site settings ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `svi_settings` (
+  `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `setting_key` VARCHAR(80)  NOT NULL,
+  `value`       TEXT         NOT NULL,
+  `label`       VARCHAR(120) NOT NULL DEFAULT '',
+  `description` VARCHAR(255) NOT NULL DEFAULT '',
+  `type`        ENUM('boolean','integer','text','email','textarea') NOT NULL DEFAULT 'text',
+  `updated_at`  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_key` (`setting_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `svi_settings` (`setting_key`, `value`, `label`, `description`, `type`) VALUES
+  ('allow_deblock',             '1',                    'Allow Deblock Requests',        'When disabled users cannot submit deblock requests from the public page.',          'boolean'),
+  ('deblock_cooldown_hours',    '24',                   'Deblock Cooldown (hours)',       'Minimum hours between two deblock requests from the same IP.',                    'integer'),
+  ('max_check_attempts',        '10',                   'Max IP Check Attempts / day',   'Maximum times a single IP can call the block-check endpoint per day.',             'integer'),
+  ('maintenance_mode',          '0',                    'Maintenance Mode',              'Show a maintenance notice on the public page instead of the normal content.',      'boolean'),
+  ('maintenance_message',       'We are currently performing scheduled maintenance. The SVI portal will be back shortly.', 'Maintenance Message', 'Shown when maintenance mode is active.', 'textarea'),
+  ('admin_email',               'admin@ericksonholding.com', 'Admin Email',              'Used for system notifications and deblock alerts.',                               'email'),
+  ('session_timeout_minutes',   '60',                   'Admin Session Timeout (min)',   'Minutes of inactivity before the admin session expires.',                         'integer'),
+  ('login_max_attempts',        '5',                    'Max Login Attempts',            'Failed attempts before the admin account is temporarily locked.',                  'integer'),
+  ('login_lockout_minutes',     '15',                   'Login Lockout Duration (min)',  'Minutes an admin account remains locked after too many failed attempts.',          'integer'),
+  ('show_ip_tool',              '1',                    'Show IP Check Tool',            'Display the IP check / deblock form on the public page.',                         'boolean'),
+  ('site_notice',               '',                     'Site Notice Banner',            'Optional notice displayed at the top of the public page (leave empty to hide).',  'textarea'),
+  ('auto_block_on_exceed',      '1',                    'Auto-Block on Attempt Exceed',  'Automatically soft-block IPs that exceed the daily check limit.',                 'boolean'),
+  ('require_reason_for_block',  '0',                    'Require Reason When Blocking',  'Admin must enter a reason when adding a new block via the panel.',                'boolean')
+ON DUPLICATE KEY UPDATE `label` = VALUES(`label`), `description` = VALUES(`description`);
+
+
+-- ── IP check rate-limit log ────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `svi_check_log` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `ip`         VARCHAR(45)  NOT NULL,
+  `target_ip`  VARCHAR(45)  NOT NULL,
+  `created_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_ip_date` (`ip`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
