@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { query } from '@/lib/db';
 import { getSviSetting, getSviContent } from '@/lib/auth';
-import { RowDataPacket } from 'mysql2/promise';
 
 export async function POST(req: Request) {
     try {
@@ -13,16 +12,14 @@ export async function POST(req: Request) {
             return NextResponse.json({ status: 'error', message: 'No IP address provided.' }, { status: 400 });
         }
 
-        const db = getDb();
-
         // Rate limiting
         const maxAttempts = parseInt(await getSviSetting('max_check_attempts', '10'));
         const autoBlock = await getSviSetting('auto_block_on_exceed', '1') === '1';
 
         let todayChecks = 0;
         if (checkerIp !== '::1' && checkerIp !== '127.0.0.1' && checkerIp !== 'localhost') {
-            const [checkCounts] = await db.execute<RowDataPacket[]>(
-                "SELECT COUNT(*) as cnt FROM svi_check_log WHERE ip=? AND DATE(created_at)=CURDATE()",
+            const checkCounts = await query<{ cnt: number }>(
+                "SELECT COUNT(*)::int AS cnt FROM svi_check_log WHERE ip = $1 AND created_at::date = CURRENT_DATE",
                 [checkerIp]
             );
             todayChecks = checkCounts[0]?.cnt || 0;
@@ -30,8 +27,9 @@ export async function POST(req: Request) {
 
         if (todayChecks >= maxAttempts) {
             if (autoBlock) {
-                await db.execute(
-                    "INSERT INTO svi_blocked_ips (ip, block_type, reason) VALUES (?,?,?) ON DUPLICATE KEY UPDATE block_type=VALUES(block_type), reason=VALUES(reason)",
+                await query(
+                    `INSERT INTO svi_blocked_ips (ip, block_type, reason) VALUES ($1, $2, $3)
+                     ON CONFLICT (ip) DO UPDATE SET block_type = EXCLUDED.block_type, reason = EXCLUDED.reason, updated_at = NOW()`,
                     [checkerIp, 'soft', 'Auto-blocked: exceeded daily check limit']
                 );
             }
@@ -39,7 +37,7 @@ export async function POST(req: Request) {
         }
 
         // Log this check
-        await db.execute("INSERT INTO svi_check_log (ip, target_ip) VALUES (?,?)", [checkerIp, ip]);
+        await query("INSERT INTO svi_check_log (ip, target_ip) VALUES ($1, $2)", [checkerIp, ip]);
 
         const content = await getSviContent('main');
         const txt = (key: string) => content[key] || '';
@@ -48,28 +46,40 @@ export async function POST(req: Request) {
         const isLocal = ip === '::1' || ip === '127.0.0.1' || ip === 'localhost';
         const q1 = isLocal
             ? "SELECT * FROM svi_blocked_ips WHERE ip IN ('::1', '127.0.0.1', 'localhost') ORDER BY id DESC LIMIT 1"
-            : "SELECT * FROM svi_blocked_ips WHERE ip=?";
+            : "SELECT * FROM svi_blocked_ips WHERE ip = $1";
         const params1 = isLocal ? [] : [ip];
 
-        const [rows] = await db.execute<RowDataPacket[]>(q1, params1);
+        const rows = await query<{
+            id: number;
+            ip: string;
+            block_type: string;
+            reason: string | null;
+            deblock_req: boolean;
+            deblocked: boolean;
+            blocked_website: string | null;
+        }>(q1, params1);
         let record = rows[0];
 
         if (!record) {
             const q2 = isLocal
-                ? "SELECT * FROM blocked_ips WHERE ip_address IN ('::1', '127.0.0.1', 'localhost') AND active=1 ORDER BY id DESC LIMIT 1"
-                : "SELECT * FROM blocked_ips WHERE ip_address=? AND active=1 ORDER BY id DESC LIMIT 1";
+                ? "SELECT * FROM blocked_ips WHERE ip_address IN ('::1', '127.0.0.1', 'localhost') AND active = true ORDER BY id DESC LIMIT 1"
+                : "SELECT * FROM blocked_ips WHERE ip_address = $1 AND active = true ORDER BY id DESC LIMIT 1";
             const params2 = isLocal ? [] : [ip];
-            const [legacyRows] = await db.execute<RowDataPacket[]>(q2, params2);
+            const legacyRows = await query<{
+                id: number;
+                ip_address: string;
+                reason: string | null;
+            }>(q2, params2);
             if (legacyRows[0]) {
                 record = {
                     id: legacyRows[0].id,
                     ip: legacyRows[0].ip_address,
                     block_type: 'permanent',
                     reason: legacyRows[0].reason,
-                    deblock_req: 0,
-                    deblocked: 0,
+                    deblock_req: false,
+                    deblocked: false,
                     blocked_website: null
-                } as unknown as RowDataPacket;
+                };
             }
         }
 

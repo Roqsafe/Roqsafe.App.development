@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { query } from '@/lib/db';
 import { getSviSetting } from '@/lib/auth';
-import { RowDataPacket } from 'mysql2/promise';
 
 export async function POST(req: Request) {
     try {
@@ -12,14 +11,17 @@ export async function POST(req: Request) {
             return NextResponse.json({ status: 'error', message: 'No IP address provided.' }, { status: 400 });
         }
 
-        const db = getDb();
-
         const allowDeblock = await getSviSetting('allow_deblock', '1');
         if (allowDeblock !== '1') {
             return NextResponse.json({ status: 'error', message: 'Deblock requests are currently not accepted. Please contact support directly.' });
         }
 
-        const [rows] = await db.execute<RowDataPacket[]>("SELECT * FROM svi_blocked_ips WHERE ip=?", [ip]);
+        const rows = await query<{
+            block_type: string;
+            deblocked: boolean;
+            deblock_req: boolean;
+            updated_at: Date | string | null;
+        }>("SELECT * FROM svi_blocked_ips WHERE ip = $1", [ip]);
         const record = rows[0];
 
         if (!record) {
@@ -36,7 +38,7 @@ export async function POST(req: Request) {
 
         const cooldownHours = parseInt(await getSviSetting('deblock_cooldown_hours', '24'));
         if (record.deblock_req && cooldownHours > 0) {
-            const updatedAt = new Date(record.updated_at).getTime();
+            const updatedAt = new Date(record.updated_at ?? Date.now()).getTime();
             const now = new Date().getTime();
             const hoursSince = (now - updatedAt) / (1000 * 60 * 60);
 
@@ -46,7 +48,7 @@ export async function POST(req: Request) {
             }
         }
 
-        await db.execute("UPDATE svi_blocked_ips SET deblock_req=1 WHERE ip=?", [ip]);
+        await query("UPDATE svi_blocked_ips SET deblock_req = true, updated_at = NOW() WHERE ip = $1", [ip]);
 
         return NextResponse.json({ status: 'success', message: 'Your deblock request has been submitted successfully. Our team will review your case and contact you if additional information is required.' });
 

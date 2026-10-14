@@ -1,34 +1,29 @@
-import mysql from 'mysql2/promise';
+import "dotenv/config";
+import { config as loadEnv } from "dotenv";
+import { Pool, type QueryResultRow } from "pg";
 
-let pool: mysql.Pool | null = null;
-let remotePool: mysql.Pool | null = null;
+loadEnv({ path: ".env.local" });
 
-export const getDb = () => {
+let pool: Pool | null = null;
+
+export function getDb(): Pool {
     if (!pool) {
-        pool = mysql.createPool({
-            host: process.env.DB_HOST || 'localhost',
-            user: process.env.DB_USER || 'root',
-            password: process.env.DB_PASS || '',
-            database: process.env.DB_NAME || 'svi_db',
-            waitForConnections: true,
-            connectionLimit: 10,
-            queueLimit: 0
+        const connectionString = process.env.DATABASE_URL;
+        if (!connectionString) {
+            throw new Error("DATABASE_URL is not set");
+        }
+        pool = new Pool({
+            connectionString,
+            max: 10,
         });
     }
     return pool;
-};
+}
 
-export const getRemoteDb = () => {
-    if (!remotePool) {
-        remotePool = mysql.createPool({
-            host: process.env.DB_REMOTE_HOST || 'localhost',
-            user: process.env.DB_REMOTE_USER || 'erichmsx_re_Database_hmsx_Roqs',
-            password: process.env.DB_REMOTE_PASS || 't0OmxbPpPb03',
-            database: process.env.DB_REMOTE_NAME || 'erichmsx_Roqsafe',
-            waitForConnections: true,
-            connectionLimit: 10,
-            queueLimit: 0
-        });
-    }
-    return remotePool;
-};
+export async function query<T extends QueryResultRow = QueryResultRow>(
+    text: string,
+    params: unknown[] = [],
+): Promise<T[]> {
+    const result = await getDb().query<T>(text, params);
+    return result.rows;
+}
