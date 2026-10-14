@@ -1,20 +1,18 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
-import { RowDataPacket } from 'mysql2/promise';
+import { query } from '@/lib/db';
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get('q') || '';
+    const queryText = searchParams.get('q') || '';
 
-    if (!query.trim()) {
+    if (!queryText.trim()) {
         return NextResponse.json([]);
     }
 
     try {
-        const db = getDb();
-        const searchParam = `%${query}%`;
-        const [rows] = await db.execute<RowDataPacket[]>(
-            `SELECT DISTINCT page FROM svi_content WHERE page LIKE ? OR \`key\` LIKE ? OR \`value\` LIKE ? LIMIT 5`,
+        const searchParam = `%${queryText}%`;
+        const rows = await query<{ page: string }>(
+            `SELECT DISTINCT page FROM svi_content WHERE page ILIKE $1 OR "key" ILIKE $2 OR "value" ILIKE $3 LIMIT 5`,
             [searchParam, searchParam, searchParam]
         );
 
@@ -30,7 +28,7 @@ export async function GET(request: Request) {
         });
 
         // Special case for project tools
-        if ('Project Tools IP Verification'.toLowerCase().includes(query.toLowerCase())) {
+        if ('Project Tools IP Verification'.toLowerCase().includes(queryText.toLowerCase())) {
             formatted.push({
                 title: 'Project Tools',
                 url: '/Verifi/data/user/default',

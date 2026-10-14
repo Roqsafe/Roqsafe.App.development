@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
-import { RowDataPacket } from 'mysql2/promise';
+import { query } from '@/lib/db';
 
 export async function POST(req: Request) {
     try {
@@ -14,19 +13,20 @@ export async function POST(req: Request) {
         const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('x-real-ip') || '127.0.0.1';
         const ua = req.headers.get('user-agent')?.substring(0, 512) || '';
         
-        const db = getDb();
-
         // Domain Validation
         if (!email.endsWith('@ericksonholding.com')) {
-            await db.execute(
-                "INSERT INTO `svi_login_log` (`username`,`ip`,`success`,`user_agent`) VALUES (?,?,0,?)",
+            await query(
+                "INSERT INTO svi_login_log (username, ip, success, user_agent) VALUES ($1, $2, false, $3)",
                 [email, clientIp, ua]
             );
             return NextResponse.json({ success: false, error: 'Only authorized Erickson Holding emails can log in. Access Denied.' });
         }
 
         // Admin Verification
-        const [rows] = await db.execute<RowDataPacket[]>("SELECT * FROM `svi_admins` WHERE `email` = ?", [email]);
+        const rows = await query<{ id: number; username: string; locked_until: Date | null }>(
+            "SELECT * FROM svi_admins WHERE email = $1",
+            [email]
+        );
         const admin = rows[0];
 
         if (admin) {
@@ -35,12 +35,12 @@ export async function POST(req: Request) {
                 return NextResponse.json({ success: false, error: `Account temporarily locked due to previous failed attempts. Try again after ${unlockAt}.` });
             }
 
-            await db.execute(
-                "UPDATE `svi_admins` SET `login_attempts`=0, `locked_until`=NULL, `last_login`=NOW() WHERE `id`=?",
+            await query(
+                "UPDATE svi_admins SET login_attempts = 0, locked_until = NULL, last_login = NOW() WHERE id = $1",
                 [admin.id]
             );
-            await db.execute(
-                "INSERT INTO `svi_login_log` (`username`,`ip`,`success`,`user_agent`) VALUES (?,?,1,?)",
+            await query(
+                "INSERT INTO svi_login_log (username, ip, success, user_agent) VALUES ($1, $2, true, $3)",
                 [email, clientIp, ua]
             );
 
@@ -59,8 +59,8 @@ export async function POST(req: Request) {
 
             return response;
         } else {
-            await db.execute(
-                "INSERT INTO `svi_login_log` (`username`,`ip`,`success`,`user_agent`) VALUES (?,?,0,?)",
+            await query(
+                "INSERT INTO svi_login_log (username, ip, success, user_agent) VALUES ($1, $2, false, $3)",
                 [email, clientIp, ua]
             );
             return NextResponse.json({ success: false, error: 'No SVI admin account found for this email address.' });
